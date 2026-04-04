@@ -1,2 +1,34 @@
-Final_Plan.md
-README.md
+# Python
+__pycache__/
+*$py.class
+*.so
+.Python
+lib/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+MANIFEST
+.pytest_cache/
+
+# Virtual Environments
+.venv
+venv/
+ENV/
+env/
+.env
+
+# IDE
+.vscode/
+
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# HuggingFace / Model Cache (large files)
+.cache/
+.huggingface/
+
+# Project-specific (large files, not source)
+models/*.pt
+models/*.bin

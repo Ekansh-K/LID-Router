@@ -24,7 +24,7 @@ eng:
 cmn:
   whisper: "zh"
   mms_lid: "cmn"
-  mms_asr: "cmn"
+  mms_asr: "cmn-script_simplified"
   fleurs: "cmn_hans_cn"
   name: "Mandarin Chinese"
   family: "sino_tibetan"
@@ -32,7 +32,7 @@ cmn:
 arb:
   whisper: "ar"
   mms_lid: "arb"
-  mms_asr: "arb"
+  mms_asr: "ara"
   fleurs: "ar_eg"
   name: "Arabic (Egyptian)"
   family: "semitic"
@@ -81,7 +81,7 @@ jpn:
 urd:
   whisper: "ur"
   mms_lid: "urd"
-  mms_asr: "urd"
+  mms_asr: "urd-script_arabic"
   fleurs: "ur_pk"
   name: "Urdu"
   family: "indo_aryan"
@@ -89,7 +89,7 @@ urd:
 srp:
   whisper: "sr"
   mms_lid: "srp"
-  mms_asr: "srp"
+  mms_asr: "srp-script_cyrillic"
   fleurs: "sr_rs"
   name: "Serbian"
   family: "south_slavic"
@@ -218,7 +218,7 @@ mon:
 nep:
   whisper: "ne"
   mms_lid: "nep"
-  mms_asr: "nep"
+  mms_asr: "npi"
   fleurs: "ne_np"
   name: "Nepali"
   family: "indo_aryan"
