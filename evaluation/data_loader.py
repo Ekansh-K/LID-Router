@@ -28,6 +28,17 @@ SUBSET_30_FLEURS = [
 ]
 
 
+def _datasets_version():
+    """Return (major, minor) tuple for the installed datasets library."""
+    try:
+        import importlib.metadata
+        ver = importlib.metadata.version("datasets")
+        parts = ver.split(".")
+        return (int(parts[0]), int(parts[1]))
+    except Exception:
+        return (0, 0)
+
+
 def load_fleurs(lang_codes: Optional[List[str]] = None,
                 split: str = "test",
                 streaming: bool = True,
@@ -35,6 +46,9 @@ def load_fleurs(lang_codes: Optional[List[str]] = None,
                 ) -> Dict[str, any]:
     """Load FLEURS dataset for specified languages.
     
+    Requires datasets < 4.0.0 (google/fleurs uses a loading script).
+    On Kaggle, run: !pip install 'datasets==2.20.0' --quiet  then restart kernel.
+
     Args:
         lang_codes: list of FLEURS config names (e.g., ["en_us", "fr_fr"]).
                    If None, uses the 30-language subset.
@@ -47,6 +61,15 @@ def load_fleurs(lang_codes: Optional[List[str]] = None,
     """
     from datasets import load_dataset, Audio
 
+    ver = _datasets_version()
+    if ver >= (4, 0):
+        raise RuntimeError(
+            f"datasets {'.'.join(str(x) for x in ver)} no longer supports "
+            "script-based datasets like google/fleurs.\n"
+            "Fix: restart your Kaggle kernel after running:\n"
+            "  !pip install 'datasets==2.20.0' --quiet"
+        )
+
     if lang_codes is None:
         lang_codes = SUBSET_30_FLEURS
 
@@ -57,7 +80,7 @@ def load_fleurs(lang_codes: Optional[List[str]] = None,
                 "google/fleurs", lang,
                 split=split,
                 streaming=streaming,
-                trust_remote_code=True,
+                trust_remote_code=True,   # required for script-based FLEURS in datasets 2.x
             )
             # Ensure audio is 16kHz
             ds = ds.cast_column("audio", Audio(sampling_rate=16000))

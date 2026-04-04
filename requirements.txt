@@ -4,7 +4,7 @@
 torch>=2.0.0
 torchaudio>=2.0.0
 transformers>=4.36.0
-datasets>=2.14.0
+datasets>=2.14.0,<4.0.0   # google/fleurs uses a loading script; datasets 4.x dropped script support
 speechbrain>=0.5.15
 
 # Whisper — using OpenAI's package for clean detect_language API
