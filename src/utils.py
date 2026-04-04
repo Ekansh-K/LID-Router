@@ -163,6 +163,7 @@ class PipelineOutput:
     backend_used: str
     lid_distribution: Dict[str, float] = field(default_factory=dict)
     all_transcripts: List[TranscriptResult] = field(default_factory=list)
+    uncertainty: Optional["UncertaintySignals"] = None  # filled by pipeline.run()
 
 # ---------------------------------------------------------------------------
 # Timing decorator

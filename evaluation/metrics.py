@@ -50,6 +50,7 @@ class ASRResult:
     routing_mode: str
     backend: str
     candidates_considered: int
+    uncertainty_vec: Optional[List[float]] = None  # [top1_prob, gap, entropy, top3_conc, in_confusion, single_lid_only]
 
 
 @dataclass

@@ -209,6 +209,7 @@ class Pipeline:
             lid_distribution=dict(sorted(fused_probs.items(),
                                          key=lambda x: x[1], reverse=True)[:10]),
             all_transcripts=all_transcripts,
+            uncertainty=uncertainty,
         )
 
     def run_lid_only(self, audio: np.ndarray, sr: int = 16000) -> dict:

@@ -148,42 +148,48 @@ def run_ablation_a6(max_per_lang: int = 30, save_dir: str = "./results/ablations
     """A6: Rule-based only vs. learned policy.
 
     Compares rule-based routing with the trained MLP policy.
-    Requires a trained policy checkpoint at results/learned_policy.pt.
+
+    The rule-based run IS identical to Step 4 (same pipeline, same config), so we
+    reuse results/eval_results.json instead of re-running (~40 min saved).
     """
+    import shutil
     from src.pipeline import Pipeline
-    from src.routing.agent import RoutingAgent
 
     config = load_config()
 
-    # Run with rule-based (this is the default, but explicit for clarity)
-    pipe_rules = Pipeline(config=config, routing_policy="rules")
-    pipe_rules.load_models()
-    log.info("A6: Running with rule-based policy...")
-    results_rules = evaluate_full(pipe_rules, max_per_lang=max_per_lang,
-                                  save_path=f"{save_dir}/a6_rules_policy.json")
+    # ── Rule-based: reuse Step 4 output (identical pipeline) ──────────────
+    step4_json = Path(save_dir).parent / "eval_results.json"
+    a6_rules_path = Path(save_dir) / "a6_rules_policy.json"
+    if step4_json.exists():
+        shutil.copy(step4_json, a6_rules_path)
+        log.info(f"A6: Reused Step 4 results as rule-based baseline → {a6_rules_path}")
+        with open(a6_rules_path) as f:
+            results_rules_dict = json.load(f)
+    else:
+        # Fallback: re-run if Step 4 JSON is missing
+        log.warning("A6: eval_results.json not found — re-running rule-based eval.")
+        pipe_rules = Pipeline(config=config, routing_policy="rules")
+        pipe_rules.load_models()
+        results_rules = evaluate_full(pipe_rules, max_per_lang=max_per_lang,
+                                      save_path=str(a6_rules_path))
+        pipe_rules.unload_models()
+        results_rules_dict = results_rules.to_dict()
 
-    # Run with learned policy (if checkpoint exists)
-    checkpoint = Path(save_dir).parent / "learned_policy.pt"
+    # ── Learned policy ─────────────────────────────────────────────────────
+    checkpoint = Path("models/routing_policy.pt")
     if checkpoint.exists():
         pipe_learned = Pipeline(config=config, routing_policy="learned")
-        # Share already-loaded models to save VRAM/time
-        pipe_learned.acoustic_lid = pipe_rules.acoustic_lid
-        pipe_learned.decoder_lid = pipe_rules.decoder_lid
-        pipe_learned.whisper_backend = pipe_rules.whisper_backend
-        pipe_learned.mms_backend = pipe_rules.mms_backend
-        pipe_learned._models_loaded = True
+        pipe_learned.load_models()
         pipe_learned.routing_agent.load_learned_policy(str(checkpoint))
 
-        log.info("A6: Running with learned MLP policy...")
+        log.info("A6: Running with learned MLP policy (LID-oracle)...")
         results_learned = evaluate_full(pipe_learned, max_per_lang=max_per_lang,
                                         save_path=f"{save_dir}/a6_learned_policy.json")
-        pipe_rules.unload_models()
-        return {"rules": results_rules.to_dict(), "learned": results_learned.to_dict()}
+        pipe_learned.unload_models()
+        return {"rules": results_rules_dict, "learned": results_learned.to_dict()}
     else:
-        log.warning(f"A6: No learned policy checkpoint at {checkpoint} — "
-                    "skipping learned policy comparison. Train first in Phase 4.")
-        pipe_rules.unload_models()
-        return results_rules
+        log.warning("A6: models/routing_policy.pt not found — skipping learned comparison.")
+        return results_rules_dict
 
 
 def run_ablation_a7(max_per_lang: int = 30, save_dir: str = "./results/ablations"):
@@ -249,6 +255,37 @@ def run_ablation_a8(max_per_lang: int = 30, save_dir: str = "./results/ablations
     return results
 
 
+def run_ablation_a9_cer_oracle(max_per_lang: int = 30, save_dir: str = "./results/ablations"):
+    """A9: CER-oracle learned routing policy.
+
+    Uses a policy trained on CER-based oracle labels (from the test set)
+    rather than LID-accuracy oracle labels. Labels are assigned as:
+      CER < 0.15  → Mode A (single decode was fine)
+      CER < 0.35  → Mode B (multi-hypothesis quality)
+      CER ≥ 0.35  → Mode C (fallback needed)
+
+    Compares against the LID-oracle policy (A6) to see whether CER-oracle
+    supervision yields better routing.
+    """
+    from src.pipeline import Pipeline
+    checkpoint = Path("models/routing_policy_cer.pt")
+    if not checkpoint.exists():
+        log.warning("A9: models/routing_policy_cer.pt not found — skipping. "
+                    "Run the CER-oracle training cell first.")
+        return {"error": "checkpoint not found"}
+
+    config = load_config()
+    pipe = Pipeline(config=config, routing_policy="learned")
+    pipe.load_models()
+    pipe.routing_agent.load_learned_policy(str(checkpoint))
+
+    log.info("A9: Running with CER-oracle learned policy...")
+    results = evaluate_full(pipe, max_per_lang=max_per_lang,
+                            save_path=f"{save_dir}/a9_cer_oracle_policy.json")
+    pipe.unload_models()
+    return results
+
+
 def run_all_ablations(max_per_lang: int = 30,
                       save_dir: str = "./results/ablations"):
     """Run all ablation experiments. Takes several hours on GPU."""
@@ -263,6 +300,7 @@ def run_all_ablations(max_per_lang: int = 30,
         "A6": run_ablation_a6,
         "A7": run_ablation_a7,
         "A8": run_ablation_a8,
+        "A9": run_ablation_a9_cer_oracle,
     }
 
     all_results = {}

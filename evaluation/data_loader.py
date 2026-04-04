@@ -21,10 +21,10 @@ SUBSET_30_FLEURS = [
     "en_us", "cmn_hans_cn", "ar_eg", "hi_in", "es_419", "fr_fr", "de_de", "ja_jp",
     # Group B: Confusion Pairs (hin already in A, no duplicate)
     "ur_pk", "sr_rs", "hr_hr", "id_id", "ms_my",
-    "nb_no", "nn_no", "cs_cz", "sk_sk", "pt_br",
+    "nb_no", "da_dk", "cs_cz", "sk_sk", "pt_br",
     # Group C: Low-Resource
-    "yo_ng", "sw_ke", "am_et", "cy_gb", "eu_es",
-    "ka_ge", "mn_mn", "ne_np", "su_id", "ha_ng",
+    "yo_ng", "sw_ke", "am_et", "cy_gb", "jv_id",
+    "ka_ge", "mn_mn", "ne_np", "lo_la", "ha_ng",
 ]
 
 

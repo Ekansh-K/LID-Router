@@ -126,12 +126,12 @@ nob:
   name: "Norwegian Bokmål"
   family: "scandinavian"
 
-nno:
-  whisper: "nn"
-  mms_lid: "nno"
-  mms_asr: "nno"
-  fleurs: "nn_no"
-  name: "Norwegian Nynorsk"
+dan:
+  whisper: "da"
+  mms_lid: "dan"
+  mms_asr: "dan"
+  fleurs: "da_dk"
+  name: "Danish"
   family: "scandinavian"
 
 ces:
@@ -191,13 +191,13 @@ cym:
   name: "Welsh"
   family: "celtic"
 
-eus:
-  whisper: "eu"
-  mms_lid: "eus"
-  mms_asr: "eus"
-  fleurs: "eu_es"
-  name: "Basque"
-  family: "isolate"
+jav:
+  whisper: "jw"
+  mms_lid: "jav"
+  mms_asr: "jav"
+  fleurs: "jv_id"
+  name: "Javanese"
+  family: "austronesian"
 
 kat:
   whisper: "ka"
@@ -223,13 +223,13 @@ nep:
   name: "Nepali"
   family: "indo_aryan"
 
-sun:
-  whisper: "su"
-  mms_lid: "sun"
-  mms_asr: "sun"
-  fleurs: "su_id"
-  name: "Sundanese"
-  family: "austronesian"
+lao:
+  whisper: "lo"
+  mms_lid: "lao"
+  mms_asr: "lao"
+  fleurs: "lo_la"
+  name: "Lao"
+  family: "kra_dai"
 
 hau:
   whisper: "ha"

@@ -125,6 +125,10 @@ def evaluate_full(pipeline: Pipeline,
                 routing_mode=output.routing_mode,
                 backend=output.backend_used,
                 candidates_considered=output.candidates_considered,
+                uncertainty_vec=(
+                    output.uncertainty.to_vector().tolist()
+                    if output.uncertainty is not None else None
+                ),
             ))
 
         except Exception as e:
@@ -145,8 +149,22 @@ def evaluate_full(pipeline: Pipeline,
 
     if save_path:
         Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+        records = [
+            {
+                "true_lang": r.true_lang,
+                "predicted_lang": r.predicted_lang,
+                "reference": r.reference_text,
+                "hypothesis": r.hypothesis_text,
+                "cer": r.cer,
+                "wer": r.wer,
+                "routing_mode": r.routing_mode,
+                "backend": r.backend,
+                "uncertainty_vec": r.uncertainty_vec,
+            }
+            for r in results.asr_results
+        ]
         with open(save_path, "w") as f:
-            json.dump(summary, f, indent=2, default=str)
+            json.dump({**summary, "records": records}, f, indent=2, default=str)
         log.info(f"Results saved to {save_path}")
 
     return results

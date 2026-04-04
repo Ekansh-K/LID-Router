@@ -43,9 +43,11 @@ fusion:
   family_alpha_overrides: {}
 
 # --- Routing Thresholds (Rule-Based Policy) ---
+# Tuned after Step 4: theta_high=0.85 caused 62% routing to Mode B (too strict).
+# Lowered to 0.70/0.20 so high-LID-confidence samples stay in Mode A (MMS).
 routing:
-  theta_high: 0.85          # top-1 prob above this → candidate for Mode A
-  delta_high: 0.30          # top1-top2 gap above this → strong Mode A signal
+  theta_high: 0.70          # top-1 prob above this → candidate for Mode A
+  delta_high: 0.20          # top1-top2 gap above this → strong Mode A signal
   theta_med: 0.40           # top-1 prob above this → Mode B
   entropy_med: 2.0           # entropy below this → Mode B
   top_k: 3                  # number of hypotheses in Mode B

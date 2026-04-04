@@ -179,7 +179,7 @@ class LearnedRoutingPolicy:
 def generate_oracle_labels(fused_probs_list: list,
                            uncertainty_list: list,
                            true_langs: list,
-                           top_k: int = 3) -> Tuple[np.ndarray, np.ndarray]:
+                           top_k: int = 2) -> Tuple[np.ndarray, np.ndarray]:
     """Generate training data for the learned policy from dev set results.
     
     Args:
