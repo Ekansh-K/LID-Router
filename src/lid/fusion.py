@@ -66,9 +66,9 @@ class LIDFusion:
     def _normalize_acoustic_probs(self, raw_probs: Dict[str, float]) -> Dict[str, float]:
         """Convert MMS-LID codes to canonical ISO 639-3 codes.
         
-        MMS-LID-4017 already uses ISO 639-3, but some codes might differ
-        from our canonical map. Pass through codes that aren't in our map
-        (they're valid but just not in our 30-lang subset).
+        MMS-LID-4017 already uses ISO 639-3. Codes not in our language_map
+        are passed through as-is (they're valid ISO 639-3, just outside our
+        30-lang evaluation subset, and may still be valid MMS adapter names).
         """
         normalized = {}
         for code, prob in raw_probs.items():
@@ -79,12 +79,19 @@ class LIDFusion:
         return normalized
 
     def _normalize_decoder_probs(self, raw_probs: Dict[str, float]) -> Dict[str, float]:
-        """Convert Whisper codes (en, zh, etc.) to canonical ISO 639-3."""
+        """Convert Whisper codes (en, zh, etc.) to canonical ISO 639-3.
+        
+        Codes that don't map to any entry in language_map are dropped —
+        they can't be reliably routed by the ASR backends.
+        """
         normalized = {}
         for code, prob in raw_probs.items():
             canon = self.lang_map.from_whisper(code)
-            key = canon if canon else code
-            normalized[key] = normalized.get(key, 0.0) + prob
+            if canon is None:
+                # Skip unmapped Whisper codes — don't leak raw ISO 639-1 codes
+                # into fused_probs where ASR backends can't handle them.
+                continue
+            normalized[canon] = normalized.get(canon, 0.0) + prob
         return normalized
 
     @timed

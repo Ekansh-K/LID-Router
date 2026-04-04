@@ -1,5 +1,5 @@
 """
-PolyRoute: Shared utilities for config loading, language code normalization, timing, logging.
+Shared utilities: config loading, language code normalization, timing, logging.
 """
 import os
 import time

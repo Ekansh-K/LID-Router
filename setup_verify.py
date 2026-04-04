@@ -94,7 +94,7 @@ def check_gpu():
     import torch
     assert torch.cuda.is_available(), "CUDA not available"
     dev = torch.cuda.get_device_name(0)
-    mem = torch.cuda.get_device_properties(0).total_mem / 1e9
+    mem = torch.cuda.get_device_properties(0).total_memory / 1e9
     return f"{dev} ({mem:.1f} GB)"
 
 

@@ -1,5 +1,5 @@
 """
-PolyRoute: End-to-end Pipeline Orchestrator.
+End-to-end Pipeline Orchestrator.
 
 This is the main entry point that chains:
   preprocessing → dual LID → fusion → routing agent → decoding → output
