@@ -1,0 +1,240 @@
+# ============================================================
+# Language Code Mapping — Normalized ISO 639-3 as canonical key
+# ============================================================
+# Each entry maps a canonical ISO 639-3 code to:
+#   - whisper: code used by openai-whisper (ISO 639-1 / custom)
+#   - mms_lid: code used by facebook/mms-lid-4017
+#   - mms_asr: code used by facebook/mms-1b-all
+#   - fleurs:  config name in google/fleurs dataset
+#   - name:    human-readable name
+#   - family:  language family (for grouping & analysis)
+#
+# NOTE: Some codes need verification against actual model configs.
+# Run `python -m src.utils verify-lang-map` to validate at runtime.
+
+# ─── Group A: High-Resource, Well-Separated (8 langs) ───
+eng:
+  whisper: "en"
+  mms_lid: "eng"
+  mms_asr: "eng"
+  fleurs: "en_us"
+  name: "English"
+  family: "germanic"
+
+cmn:
+  whisper: "zh"
+  mms_lid: "cmn"
+  mms_asr: "cmn"
+  fleurs: "cmn_hans_cn"
+  name: "Mandarin Chinese"
+  family: "sino_tibetan"
+
+arb:
+  whisper: "ar"
+  mms_lid: "arb"
+  mms_asr: "arb"
+  fleurs: "ar_eg"
+  name: "Arabic (Egyptian)"
+  family: "semitic"
+
+hin:
+  whisper: "hi"
+  mms_lid: "hin"
+  mms_asr: "hin"
+  fleurs: "hi_in"
+  name: "Hindi"
+  family: "indo_aryan"
+
+spa:
+  whisper: "es"
+  mms_lid: "spa"
+  mms_asr: "spa"
+  fleurs: "es_419"
+  name: "Spanish"
+  family: "romance"
+
+fra:
+  whisper: "fr"
+  mms_lid: "fra"
+  mms_asr: "fra"
+  fleurs: "fr_fr"
+  name: "French"
+  family: "romance"
+
+deu:
+  whisper: "de"
+  mms_lid: "deu"
+  mms_asr: "deu"
+  fleurs: "de_de"
+  name: "German"
+  family: "germanic"
+
+jpn:
+  whisper: "ja"
+  mms_lid: "jpn"
+  mms_asr: "jpn"
+  fleurs: "ja_jp"
+  name: "Japanese"
+  family: "japonic"
+
+# ─── Group B: Known Confusion Pairs (11 langs, complement to Group A) ───
+urd:
+  whisper: "ur"
+  mms_lid: "urd"
+  mms_asr: "urd"
+  fleurs: "ur_pk"
+  name: "Urdu"
+  family: "indo_aryan"
+
+srp:
+  whisper: "sr"
+  mms_lid: "srp"
+  mms_asr: "srp"
+  fleurs: "sr_rs"
+  name: "Serbian"
+  family: "south_slavic"
+
+hrv:
+  whisper: "hr"
+  mms_lid: "hrv"
+  mms_asr: "hrv"
+  fleurs: "hr_hr"
+  name: "Croatian"
+  family: "south_slavic"
+
+ind:
+  whisper: "id"
+  mms_lid: "ind"
+  mms_asr: "ind"
+  fleurs: "id_id"
+  name: "Indonesian"
+  family: "austronesian"
+
+msa:
+  whisper: "ms"
+  mms_lid: "zlm"
+  mms_asr: "zlm"
+  fleurs: "ms_my"
+  name: "Malay"
+  family: "austronesian"
+
+nob:
+  whisper: "no"
+  mms_lid: "nob"
+  mms_asr: "nob"
+  fleurs: "nb_no"
+  name: "Norwegian Bokmål"
+  family: "scandinavian"
+
+nno:
+  whisper: "nn"
+  mms_lid: "nno"
+  mms_asr: "nno"
+  fleurs: "nn_no"
+  name: "Norwegian Nynorsk"
+  family: "scandinavian"
+
+ces:
+  whisper: "cs"
+  mms_lid: "ces"
+  mms_asr: "ces"
+  fleurs: "cs_cz"
+  name: "Czech"
+  family: "west_slavic"
+
+slk:
+  whisper: "sk"
+  mms_lid: "slk"
+  mms_asr: "slk"
+  fleurs: "sk_sk"
+  name: "Slovak"
+  family: "west_slavic"
+
+por:
+  whisper: "pt"
+  mms_lid: "por"
+  mms_asr: "por"
+  fleurs: "pt_br"
+  name: "Portuguese (BR)"
+  family: "romance"
+
+# ─── Group C: Low-Resource Languages (10 langs) ───
+yor:
+  whisper: "yo"
+  mms_lid: "yor"
+  mms_asr: "yor"
+  fleurs: "yo_ng"
+  name: "Yoruba"
+  family: "niger_congo"
+
+swh:
+  whisper: "sw"
+  mms_lid: "swh"
+  mms_asr: "swh"
+  fleurs: "sw_ke"
+  name: "Swahili"
+  family: "niger_congo"
+
+amh:
+  whisper: "am"
+  mms_lid: "amh"
+  mms_asr: "amh"
+  fleurs: "am_et"
+  name: "Amharic"
+  family: "semitic"
+
+cym:
+  whisper: "cy"
+  mms_lid: "cym"
+  mms_asr: "cym"
+  fleurs: "cy_gb"
+  name: "Welsh"
+  family: "celtic"
+
+eus:
+  whisper: "eu"
+  mms_lid: "eus"
+  mms_asr: "eus"
+  fleurs: "eu_es"
+  name: "Basque"
+  family: "isolate"
+
+kat:
+  whisper: "ka"
+  mms_lid: "kat"
+  mms_asr: "kat"
+  fleurs: "ka_ge"
+  name: "Georgian"
+  family: "kartvelian"
+
+mon:
+  whisper: "mn"
+  mms_lid: "mon"
+  mms_asr: "mon"
+  fleurs: "mn_mn"
+  name: "Mongolian"
+  family: "mongolic"
+
+nep:
+  whisper: "ne"
+  mms_lid: "nep"
+  mms_asr: "nep"
+  fleurs: "ne_np"
+  name: "Nepali"
+  family: "indo_aryan"
+
+sun:
+  whisper: "su"
+  mms_lid: "sun"
+  mms_asr: "sun"
+  fleurs: "su_id"
+  name: "Sundanese"
+  family: "austronesian"
+
+hau:
+  whisper: "ha"
+  mms_lid: "hau"
+  mms_asr: "hau"
+  fleurs: "ha_ng"
+  name: "Hausa"
+  family: "afro_asiatic"

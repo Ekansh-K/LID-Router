@@ -1,0 +1,41 @@
+# ============================================================
+# Confusion Clusters — Known mutually-confusable language groups
+# ============================================================
+# The routing agent uses these to downgrade high-confidence Mode A
+# decisions to cautious Mode B when the top-1 language belongs
+# to a cluster.  Clusters are derived from linguistic proximity
+# and will be refined empirically from the LID confusion matrix
+# built on the FLEURS dev set (Phase 2).
+
+clusters:
+  - id: south_asian_script_neutral
+    languages: [hin, urd]
+    note: "Nearly identical spoken form; script differs (Devanagari vs Nastaliq)"
+
+  - id: south_slavic
+    languages: [srp, hrv, bos]
+    note: "Former Serbo-Croatian; high mutual intelligibility"
+
+  - id: malay_indonesian
+    languages: [ind, msa]
+    note: "Very similar vocabulary, phonetics, and grammar"
+
+  - id: scandinavian
+    languages: [nob, nno, swe, dan]
+    note: "High phonetic overlap across North Germanic group"
+
+  - id: iberian_romance
+    languages: [spa, por, cat, glg]
+    note: "Romance languages with significant lexical/phonetic overlap"
+
+  - id: west_slavic
+    languages: [ces, slk]
+    note: "Czech and Slovak — high mutual intelligibility"
+
+  - id: chinese_varieties
+    languages: [cmn, yue]
+    note: "Tonal Chinese varieties present in FLEURS; nan/wuu excluded (not in dataset)"
+
+  - id: arabic_varieties
+    languages: [arb, arz]
+    note: "MSA and Egyptian Arabic (in FLEURS); ary/apc excluded (not in dataset)"

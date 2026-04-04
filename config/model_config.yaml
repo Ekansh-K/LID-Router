@@ -1,0 +1,75 @@
+# ============================================================
+# Model Configuration — Agentic LID + ASR Routing Pipeline
+# ============================================================
+# This file centralizes all model IDs, thresholds, and hyperparams.
+# Thresholds here are INITIAL values — tune on FLEURS dev set.
+
+# --- LID Models ---
+lid:
+  acoustic:
+    model_id: "facebook/mms-lid-4017"
+    device: "cuda"          # "cuda" on Kaggle, "cpu" for local testing
+    precision: "fp16"       # fp16 saves ~2GB VRAM
+    min_prob_threshold: 0.001  # drop langs below this from output
+
+  decoder:
+    model_size: "large-v3"  # or "turbo" for speed
+    device: "cuda"
+    # Whisper detect_language returns probs for 99 languages
+
+  baseline:
+    model_id: "speechbrain/lang-id-voxlingua107-ecapa"
+    device: "cuda"
+    # Only used for ablation experiments, not in main pipeline
+
+# --- ASR Backends ---
+asr:
+  whisper:
+    model_size: "large-v3"  # shared with decoder LID (same model instance)
+    device: "cuda"
+    beam_size: 5
+    temperature: 0.0        # greedy for deterministic output
+
+  mms:
+    model_id: "facebook/mms-1b-all"
+    device: "cuda"
+    precision: "fp16"
+
+# --- Fusion ---
+fusion:
+  default_alpha: 0.6        # weight for acoustic LID (MMS); 1-alpha for decoder (Whisper)
+  single_signal_penalty: 0.85  # multiplier when only one LID covers a language
+  # Per-family alpha overrides (tuned in Phase 4)
+  family_alpha_overrides: {}
+
+# --- Routing Thresholds (Rule-Based Policy) ---
+routing:
+  theta_high: 0.85          # top-1 prob above this → candidate for Mode A
+  delta_high: 0.30          # top1-top2 gap above this → strong Mode A signal
+  theta_med: 0.40           # top-1 prob above this → Mode B
+  entropy_med: 2.0           # entropy below this → Mode B
+  top_k: 3                  # number of hypotheses in Mode B
+  max_fallback_candidates: 5 # max languages to try in Mode C
+
+# --- Learned Routing Policy ---
+learned_policy:
+  input_dim: 6
+  hidden_dim: 32
+  num_modes: 3
+  learning_rate: 0.001
+  epochs: 50
+  batch_size: 64
+
+# --- Preprocessing ---
+preprocessing:
+  target_sr: 16000
+  max_duration_sec: 30      # segment longer audio
+  vad_threshold: 0.5        # Silero VAD speech probability threshold
+  min_speech_duration_ms: 250
+
+# --- Paths ---
+paths:
+  cache_dir: "./model_cache"
+  results_dir: "./results"
+  confusion_clusters: "./config/confusion_clusters.yaml"
+  language_map: "./config/language_map.yaml"
