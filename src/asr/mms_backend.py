@@ -64,7 +64,12 @@ class MMSBackend:
     def _switch_adapter(self, lang: str):
         """Load the language-specific adapter. Fast operation (~50ms)."""
         # Convert canonical code to MMS-ASR code
-        mms_code = self._lang_map.to_mms_asr(lang) or lang
+        mms_code = self._lang_map.to_mms_asr(lang)
+        if mms_code is None:
+            raise ValueError(
+                f"No MMS-ASR adapter for language '{lang}' "
+                f"(not in language_map.yaml mms_asr entries)"
+            )
 
         if mms_code == self._current_lang:
             return  # already loaded
@@ -75,7 +80,7 @@ class MMSBackend:
             self._current_lang = mms_code
             log.debug(f"Switched MMS adapter to '{mms_code}'")
         except Exception as e:
-            log.error(f"Failed to load adapter for '{mms_code}': {e}")
+            log.error(f"Failed to load MMS adapter '{mms_code}' for language '{lang}': {e}")
             raise
 
     @timed

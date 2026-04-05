@@ -114,6 +114,13 @@ class LanguageMap:
     def langs_in_family(self, family: str) -> List[str]:
         return [c for c, info in self._data.items() if info.get("family") == family]
 
+    def asr_capable(self, canon: str) -> bool:
+        """True if the language has at least one ASR backend (Whisper or MMS)."""
+        entry = self._data.get(canon)
+        if entry is None:
+            return False
+        return bool(entry.get("whisper")) or bool(entry.get("mms_asr"))
+
 # Module-level singleton — import from here everywhere
 _lang_map_instance: Optional[LanguageMap] = None
 
