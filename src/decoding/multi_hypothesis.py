@@ -73,7 +73,7 @@ def decode_multi_hypothesis(audio: np.ndarray,
     transcripts: List[TranscriptResult] = []
     scores: List[float] = []
 
-    for lang in candidate_languages:
+    for i, lang in enumerate(candidate_languages):
         backend_name = select_backend(lang, mode="B")
 
         try:
@@ -98,6 +98,26 @@ def decode_multi_hypothesis(audio: np.ndarray,
                      f"plausibility={plausibility:.3f}, "
                      f"lid={lid_prior:.3f}, "
                      f"combined={combined:.3f}")
+
+            # For the top-1 candidate, also try the OTHER backend
+            # to catch cases where the non-preferred backend is better
+            if i == 0:
+                alt_backend = "mms" if backend_name == "whisper" else "whisper"
+                try:
+                    if alt_backend == "whisper":
+                        alt_result = whisper_backend.transcribe(audio, lang)
+                    else:
+                        alt_result = mms_backend.transcribe(audio, lang)
+                    transcripts.append(alt_result)
+                    alt_score = (w_decoder * alt_result.confidence +
+                                 w_plausibility * _character_plausibility(alt_result.text) +
+                                 w_lid * lid_prior)
+                    scores.append(alt_score)
+                    log.debug(f"  → {lang} ALT ({alt_result.backend}): "
+                             f"combined={alt_score:.3f}")
+                except Exception:
+                    pass  # alt backend failed, no problem
+
         except Exception as e:
             log.warning(f"Failed to decode with language '{lang}': {e}")
             continue

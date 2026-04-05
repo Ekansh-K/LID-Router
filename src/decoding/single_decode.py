@@ -20,7 +20,8 @@ log = get_logger("decoding.single")
 def decode_single(audio: np.ndarray,
                   language: str,
                   whisper_backend: WhisperBackend,
-                  mms_backend: MMSBackend) -> TranscriptResult:
+                  mms_backend: MMSBackend,
+                  lid_confidence: float = None) -> TranscriptResult:
     """Run single-language ASR on the top-1 detected language.
     
     Args:
@@ -28,11 +29,13 @@ def decode_single(audio: np.ndarray,
         language: canonical ISO 639-3 code (the LID top-1 pick)
         whisper_backend: loaded WhisperBackend instance
         mms_backend: loaded MMSBackend instance
+        lid_confidence: fused LID confidence for backend selection
     
     Returns:
         TranscriptResult from the chosen backend.
     """
-    backend_name = select_backend(language, mode="A")
+    backend_name = select_backend(language, mode="A",
+                                  lid_confidence=lid_confidence)
     log.info(f"Mode A: decoding '{language}' with {backend_name}")
 
     if backend_name == "whisper":

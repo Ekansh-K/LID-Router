@@ -1,0 +1,124 @@
+# Per-language backend quality data measured on FLEURS test set (30 samples/lang).
+# Used by backend_selector.py to pick the best ASR backend per language.
+#
+# Sources: B1 Oracle (Whisper CER when supported), B3 Static MMS (MMS CER)
+# Measurement: Step 5 baselines from Kaggle evaluation run.
+
+default_backend: mms
+
+backend_preferences:
+  # ── Whisper-preferred languages (6/28) ──
+  arb:
+    whisper_cer: 0.045
+    mms_cer: 0.061
+    preferred: whisper
+  cmn:
+    whisper_cer: 0.515
+    mms_cer: 0.609
+    preferred: whisper
+  hin:
+    whisper_cer: 0.104
+    mms_cer: 0.216
+    preferred: whisper
+  jpn:
+    whisper_cer: 0.098
+    mms_cer: 0.251
+    preferred: whisper
+  srp:
+    whisper_cer: 0.180
+    mms_cer: 0.669
+    preferred: whisper
+  urd:
+    whisper_cer: 0.078
+    mms_cer: 0.254
+    preferred: whisper
+
+  # ── MMS-preferred languages (22/28) ──
+  amh:
+    whisper_cer: 1.116
+    mms_cer: 0.088
+    preferred: mms
+  ces:
+    whisper_cer: 0.079
+    mms_cer: 0.036
+    preferred: mms
+  cym:
+    whisper_cer: 0.158
+    mms_cer: 0.111
+    preferred: mms
+  dan:
+    whisper_cer: 0.085
+    mms_cer: 0.069
+    preferred: mms
+  deu:
+    whisper_cer: 0.083
+    mms_cer: 0.028
+    preferred: mms
+  eng:
+    whisper_cer: 0.054
+    mms_cer: 0.054
+    preferred: mms
+  fra:
+    whisper_cer: 0.068
+    mms_cer: 0.052
+    preferred: mms
+  hau:
+    whisper_cer: 0.308
+    mms_cer: 0.065
+    preferred: mms
+  hrv:
+    whisper_cer: 0.061
+    mms_cer: 0.028
+    preferred: mms
+  ind:
+    whisper_cer: 0.043
+    mms_cer: 0.023
+    preferred: mms
+  jav:
+    whisper_cer: 0.228
+    mms_cer: 0.044
+    preferred: mms
+  kat:
+    whisper_cer: 0.399
+    mms_cer: 0.047
+    preferred: mms
+  lao:
+    whisper_cer: 1.011
+    mms_cer: 0.448
+    preferred: mms
+  mon:
+    whisper_cer: 0.328
+    mms_cer: 0.070
+    preferred: mms
+  msa:
+    whisper_cer: 0.050
+    mms_cer: 0.037
+    preferred: mms
+  nep:
+    whisper_cer: 0.260
+    mms_cer: 0.086
+    preferred: mms
+  nob:
+    whisper_cer: 0.068
+    mms_cer: 0.050
+    preferred: mms
+  por:
+    whisper_cer: 0.043
+    mms_cer: 0.036
+    preferred: mms
+  slk:
+    whisper_cer: 0.071
+    mms_cer: 0.036
+    preferred: mms
+  spa:
+    whisper_cer: 0.039
+    mms_cer: 0.019
+    preferred: mms
+  swh:
+    whisper_cer: 0.114
+    mms_cer: 0.035
+    preferred: mms
+  yor:
+    whisper_cer: 0.513
+    mms_cer: 0.180
+    preferred: mms

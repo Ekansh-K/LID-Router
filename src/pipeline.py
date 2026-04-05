@@ -171,7 +171,8 @@ class Pipeline:
             # Mode A
             lang = decision.candidate_languages[0]
             best = decode_single(main_audio, lang,
-                                 self.whisper_backend, self.mms_backend)
+                                 self.whisper_backend, self.mms_backend,
+                                 lid_confidence=decision.confidence)
             all_transcripts = [best]
 
         elif decision.mode == RoutingMode.MULTI_HYPOTHESIS:
