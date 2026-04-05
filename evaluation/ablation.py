@@ -287,8 +287,14 @@ def run_ablation_a9_cer_oracle(max_per_lang: int = 30, save_dir: str = "./result
 
 
 def run_all_ablations(max_per_lang: int = 30,
-                      save_dir: str = "./results/ablations"):
-    """Run all ablation experiments. Takes several hours on GPU."""
+                      save_dir: str = "./results/ablations",
+                      skip: list = None):
+    """Run all ablation experiments. Takes several hours on GPU.
+    
+    Args:
+        skip: list of ablation names to skip, e.g. ["A1", "A2"].
+              Completed ablations are auto-detected and always skipped.
+    """
     Path(save_dir).mkdir(parents=True, exist_ok=True)
 
     ablations = {
@@ -303,8 +309,51 @@ def run_all_ablations(max_per_lang: int = 30,
         "A9": run_ablation_a9_cer_oracle,
     }
 
+    # Output file for each ablation — used to detect completed runs
+    _output_files = {
+        "A1": "a1_mms_lid_only.json",
+        "A2": "a2_whisper_lid_only.json",
+        "A3": "a3_ecapa_lid.json",
+        "A4": "a4_no_routing.json",
+        "A5": "a5_no_confusion.json",
+        "A6": "a6_learned_policy.json",  # learned half — rules is just a copy
+        "A7": "a7_mms_only_asr.json",
+        "A8": "a8_whisper_only_asr.json",
+        "A9": "a9_cer_oracle_policy.json",
+    }
+
+    explicit_skip = set(skip or [])
+
+    # Load partial results from a previous summary if it exists
+    summary_path = Path(save_dir) / "ablation_summary.json"
     all_results = {}
+    if summary_path.exists():
+        try:
+            with open(summary_path) as f:
+                all_results = json.load(f)
+            log.info(f"Loaded partial summary from {summary_path}")
+        except Exception:
+            all_results = {}
+
     for name, fn in ablations.items():
+        output_path = Path(save_dir) / _output_files[name]
+        already_done = output_path.exists()
+
+        if name in explicit_skip:
+            log.info(f"Skipping {name} (explicitly skipped)")
+            continue
+
+        if already_done:
+            log.info(f"Skipping {name} — output already exists: {output_path}")
+            # Load existing result into summary if not already there
+            if name not in all_results:
+                try:
+                    with open(output_path) as f:
+                        all_results[name] = json.load(f)
+                except Exception:
+                    pass
+            continue
+
         log.info(f"\n{'='*60}\nRunning ablation {name}\n{'='*60}")
         try:
             results = fn(max_per_lang=max_per_lang, save_dir=save_dir)

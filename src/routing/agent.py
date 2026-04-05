@@ -39,8 +39,8 @@ class RoutingAgent:
             )
         elif policy == "learned":
             self._policy = LearnedRoutingPolicy(
-                input_dim=config.get("input_dim", 6),
-                hidden_dim=config.get("hidden_dim", 32),
+                input_dim=config.get("input_dim", 11),
+                hidden_dim=config.get("hidden_dim", 64),
             )
         else:
             raise ValueError(f"Unknown policy: {policy}. Use 'rules' or 'learned'.")

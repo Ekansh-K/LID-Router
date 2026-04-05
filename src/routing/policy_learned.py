@@ -24,7 +24,7 @@ log = get_logger("routing.policy_learned")
 class LearnedRoutingPolicy:
     """MLP routing policy. Train → save → load → use."""
 
-    def __init__(self, input_dim: int = 6, hidden_dim: int = 32, num_modes: int = 3):
+    def __init__(self, input_dim: int = 11, hidden_dim: int = 64, num_modes: int = 3):
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.num_modes = num_modes
@@ -35,17 +35,23 @@ class LearnedRoutingPolicy:
         import torch.nn as nn
         self._model = nn.Sequential(
             nn.Linear(self.input_dim, self.hidden_dim),
+            nn.BatchNorm1d(self.hidden_dim),
             nn.ReLU(),
-            nn.Dropout(0.1),
+            nn.Dropout(0.2),
             nn.Linear(self.hidden_dim, self.hidden_dim),
+            nn.BatchNorm1d(self.hidden_dim),
             nn.ReLU(),
-            nn.Dropout(0.1),
-            nn.Linear(self.hidden_dim, self.num_modes),
+            nn.Dropout(0.2),
+            nn.Linear(self.hidden_dim, 32),
+            nn.BatchNorm1d(32),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(32, self.num_modes),
         )
         return self._model
 
     def train_policy(self, X: np.ndarray, y: np.ndarray,
-                     epochs: int = 50, lr: float = 0.001,
+                     epochs: int = 100, lr: float = 0.001,
                      batch_size: int = 64,
                      val_split: float = 0.15) -> dict:
         """Train the MLP on (uncertainty_features, oracle_label) pairs.
@@ -73,8 +79,8 @@ class LearnedRoutingPolicy:
         train_dl = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
 
         model = self._build_model().to(device)
-        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=15, gamma=0.5)
+        optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-3)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
         # Use class weights to handle imbalanced routing modes
         class_counts = np.bincount(y, minlength=self.num_modes).astype(np.float32)
         class_weights = 1.0 / (class_counts + 1e-6)
@@ -151,7 +157,12 @@ class LearnedRoutingPolicy:
             raise RuntimeError("Learned policy not trained/loaded. "
                              "Call train_policy() or load() first.")
 
-        features = torch.from_numpy(uncertainty.to_vector()).float().unsqueeze(0)
+        # Build 11-dim feature vector: 6 uncertainty + 5 top fused_probs
+        uncertainty_vec = uncertainty.to_vector()
+        sorted_probs = sorted(fused_probs.values(), reverse=True)[:5]
+        sorted_probs = sorted_probs + [0.0] * (5 - len(sorted_probs))
+        feature_vec = np.concatenate([uncertainty_vec, sorted_probs]).astype(np.float32)
+        features = torch.from_numpy(feature_vec).float().unsqueeze(0)
         self._model.eval()
         with torch.no_grad():
             logits = self._model(features)
@@ -179,7 +190,7 @@ class LearnedRoutingPolicy:
 def generate_oracle_labels(fused_probs_list: list,
                            uncertainty_list: list,
                            true_langs: list,
-                           top_k: int = 2) -> Tuple[np.ndarray, np.ndarray]:
+                           top_k: int = 3) -> Tuple[np.ndarray, np.ndarray]:
     """Generate training data for the learned policy from dev set results.
     
     Args:
@@ -188,13 +199,21 @@ def generate_oracle_labels(fused_probs_list: list,
         true_langs: list of ground-truth canonical language codes
     
     Returns:
-        X: (N, 6) feature matrix
+        X: (N, 11) feature matrix (6 uncertainty + 5 top probs)
         y: (N,) labels — 0=Mode A, 1=Mode B, 2=Mode C
     """
     X, y = [], []
     for fused_probs, uncertainty, true_lang in zip(
             fused_probs_list, uncertainty_list, true_langs):
-        features = uncertainty.to_vector()
+        # Get base uncertainty features
+        uncertainty_vec = uncertainty.to_vector()
+        # Add top-5 raw probabilities from fused_probs
+        sorted_probs = sorted(fused_probs.values(), reverse=True)[:5]
+        # Pad to 5 if fewer languages
+        sorted_probs = sorted_probs + [0.0] * (5 - len(sorted_probs))
+        # Concatenate: (6 uncertainty features) + (5 prob features) = 11
+        features = np.concatenate([uncertainty_vec, sorted_probs])
+        
         sorted_langs = sorted(fused_probs, key=fused_probs.get, reverse=True)
 
         if sorted_langs and sorted_langs[0] == true_lang:
