@@ -139,12 +139,26 @@ class LearnedRoutingPolicy:
 
     def load(self, path: str | Path):
         import torch
+        import torch.nn as nn
         ckpt = torch.load(path, map_location="cpu", weights_only=True)
         self.input_dim = ckpt["input_dim"]
         self.hidden_dim = ckpt["hidden_dim"]
         self.num_modes = ckpt["num_modes"]
-        self._build_model()
-        self._model.load_state_dict(ckpt["state_dict"])
+        sd = ckpt["state_dict"]
+        # Detect legacy architecture (no BatchNorm): keys at 0, 3, 6 only
+        if "3.weight" in sd and "1.weight" not in sd:
+            self._model = nn.Sequential(
+                nn.Linear(self.input_dim, self.hidden_dim),
+                nn.ReLU(),
+                nn.Dropout(0.2),
+                nn.Linear(self.hidden_dim, self.hidden_dim),
+                nn.ReLU(),
+                nn.Dropout(0.2),
+                nn.Linear(self.hidden_dim, self.num_modes),
+            )
+        else:
+            self._build_model()
+        self._model.load_state_dict(sd)
         self._model.eval()
         log.info(f"Learned policy loaded from {path}")
 
