@@ -43,16 +43,23 @@ class TestMultiHypothesis:
         from src.decoding.multi_hypothesis import decode_multi_hypothesis
         whisper, mms = _mock_backends()
 
-        # Make MMS return different quality for different languages
+        # Track 3: top-1 candidate also tries alt backend.
+        # "hin" prefers Whisper; so primary=whisper, alt=mms.
+        # Mock both backends so "hin" clearly wins.
+        def whisper_side_effect(audio, language, sr=16000):
+            if language == "hin":
+                return TranscriptResult(text="hindi whisper text", language="hin",
+                                       confidence=0.92, backend="whisper")
+            return TranscriptResult(text="x", language=language,
+                                    confidence=0.4, backend="whisper")
+        whisper.transcribe.side_effect = whisper_side_effect
+
         def mms_side_effect(audio, language, sr=16000):
             if language == "hin":
-                return TranscriptResult(text="hindi text here", language="hin",
+                return TranscriptResult(text="hindi mms text", language="hin",
                                        confidence=0.85, backend="mms")
-            elif language == "urd":
-                return TranscriptResult(text="u", language="urd",
-                                       confidence=0.3, backend="mms")
-            return TranscriptResult(text="default", language=language,
-                                   confidence=0.5, backend="mms")
+            return TranscriptResult(text="u", language=language,
+                                    confidence=0.3, backend="mms")
         mms.transcribe.side_effect = mms_side_effect
 
         audio = np.zeros(16000, dtype=np.float32)
@@ -63,7 +70,8 @@ class TestMultiHypothesis:
         )
 
         assert best.language == "hin"  # should win due to better confidence + plausibility
-        assert len(all_results) == 2
+        # Track 3 tries alt backend for top-1 candidate → 3 transcripts total
+        assert len(all_results) == 3
 
 
 class TestFallbackDecode:

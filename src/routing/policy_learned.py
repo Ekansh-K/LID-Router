@@ -145,16 +145,17 @@ class LearnedRoutingPolicy:
         self.hidden_dim = ckpt["hidden_dim"]
         self.num_modes = ckpt["num_modes"]
         sd = ckpt["state_dict"]
-        # Detect legacy architecture (no BatchNorm): keys at 0, 3, 6 only
-        if "3.weight" in sd and "1.weight" not in sd:
+        # Detect legacy architecture (no BatchNorm): expects keys 0, 3, 6
+        # Current arch (with BatchNorm) has keys 0, 1, 4, 5, 8, 9, 12
+        if "0.weight" in sd and "1.weight" not in sd and "4.weight" not in sd:
             self._model = nn.Sequential(
-                nn.Linear(self.input_dim, self.hidden_dim),
-                nn.ReLU(),
-                nn.Dropout(0.2),
-                nn.Linear(self.hidden_dim, self.hidden_dim),
-                nn.ReLU(),
-                nn.Dropout(0.2),
-                nn.Linear(self.hidden_dim, self.num_modes),
+                nn.Linear(self.input_dim, self.hidden_dim),   # 0
+                nn.ReLU(),                                     # 1
+                nn.Dropout(0.2),                              # 2
+                nn.Linear(self.hidden_dim, self.hidden_dim),  # 3
+                nn.ReLU(),                                     # 4
+                nn.Dropout(0.2),                              # 5
+                nn.Linear(self.hidden_dim, self.num_modes),   # 6
             )
         else:
             self._build_model()
@@ -171,11 +172,12 @@ class LearnedRoutingPolicy:
             raise RuntimeError("Learned policy not trained/loaded. "
                              "Call train_policy() or load() first.")
 
-        # Build 11-dim feature vector: 6 uncertainty + 5 top fused_probs
+        # Build feature vector: 6 uncertainty + up to 5 top fused_probs
+        # Clip to self.input_dim for backward-compat with older checkpoints (input_dim=6)
         uncertainty_vec = uncertainty.to_vector()
         sorted_probs = sorted(fused_probs.values(), reverse=True)[:5]
         sorted_probs = sorted_probs + [0.0] * (5 - len(sorted_probs))
-        feature_vec = np.concatenate([uncertainty_vec, sorted_probs]).astype(np.float32)
+        feature_vec = np.concatenate([uncertainty_vec, sorted_probs]).astype(np.float32)[:self.input_dim]
         features = torch.from_numpy(feature_vec).float().unsqueeze(0)
         self._model.eval()
         with torch.no_grad():
