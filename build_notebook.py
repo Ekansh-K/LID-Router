@@ -392,38 +392,50 @@ class F0Pipeline(Pipeline):
         sorted_langs = [l for l in sorted(fused_probs, key=fused_probs.get, reverse=True)
                         if lang_map.asr_capable(l)]
 
-        # Apply Phase 1+2 overrides (reuse from policy_learned)
+        # Apply Phase 1+2 overrides — MUST match policy_rules.py logic exactly.
+        # BUG FIX: force_mode_b_threshold uses RAW prob, not tempered.
         from src.routing.policy_rules import _apply_temperature
         cmap = self.routing_agent.confusion_map
         top1 = sorted_langs[0] if sorted_langs else 'unk'
-        tau  = cmap.temperature(top1)
-        tempered = _apply_temperature(fused_probs, tau)
-        t_sorted = [l for l in sorted(tempered, key=tempered.get, reverse=True)
-                    if lang_map.asr_capable(l)]
-        t1p = tempered.get(t_sorted[0], 0.0) if t_sorted else 0.0
-        t2p = tempered.get(t_sorted[1], 0.0) if len(t_sorted) > 1 else 0.0
-        tgap = t1p - t2p
+        raw_top1_prob = fused_probs.get(top1, 0.0)  # RAW probability
 
+        # Phase 1: force_mode_b_threshold — compare RAW prob
         if raw_mode == RoutingMode.SINGLE:
             fb_thresh = cmap.force_mode_b_threshold(top1)
-            if fb_thresh > 0 and t1p < fb_thresh:
+            if fb_thresh > 0 and raw_top1_prob < fb_thresh:
                 raw_mode = RoutingMode.MULTI_HYPOTHESIS
-            elif tgap < 0.10 and cmap.is_confused(top1):
-                raw_mode = RoutingMode.MULTI_HYPOTHESIS
+            # Phase 2: flat-gap guard — uses tempered gap
+            elif cmap.is_confused(top1):
+                tau  = cmap.temperature(top1)
+                tempered = _apply_temperature(fused_probs, tau)
+                t_sorted = [l for l in sorted(tempered, key=tempered.get, reverse=True)
+                            if lang_map.asr_capable(l)]
+                t1p = tempered.get(t_sorted[0], 0.0) if t_sorted else 0.0
+                t2p = tempered.get(t_sorted[1], 0.0) if len(t_sorted) > 1 else 0.0
+                tgap = t1p - t2p
+                if tgap < 0.10:
+                    raw_mode = RoutingMode.MULTI_HYPOTHESIS
 
+        # BUG FIX: use sorted_langs (raw order), not t_sorted (tempered order)
         if raw_mode == RoutingMode.SINGLE:
-            candidates = t_sorted[:1]
+            candidates = sorted_langs[:1]
         elif raw_mode == RoutingMode.MULTI_HYPOTHESIS:
-            candidates = t_sorted[:3]
+            candidates = sorted_langs[:3]
+            # BUG FIX: cap partner injection at 2 (matching policy_rules.py)
+            added = 0
             for p in cmap.get_partners(top1):
-                if p not in candidates and lang_map.asr_capable(p): candidates.append(p)
+                if added >= 2: break
+                if p not in candidates and lang_map.asr_capable(p):
+                    candidates.append(p)
+                    added += 1
             candidates = candidates[:5]
         else:
-            candidates = t_sorted[:5]
+            candidates = sorted_langs[:5]
 
         decision = RoutingDecision(mode=raw_mode, candidate_languages=candidates,
                                    confidence=float(probs[mode_idx]),
-                                   reason=f'F0-aware MLP (tau={tau:.1f})')
+                                   reason=f'F0-aware MLP (raw_prob={raw_top1_prob:.3f})')
+
 
         all_transcripts = []
         if decision.mode == RoutingMode.SINGLE:
