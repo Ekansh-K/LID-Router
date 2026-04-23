@@ -141,8 +141,12 @@ class UncertaintySignals:
     top3_concentration: float = 0.0
     in_confusion_cluster: bool = False
     single_lid_only: bool = False  # True when language not covered by both LIDs
+    # Phase 3 (optional): F0 pitch features [mean_f0, f0_std, f0_range, voiced_ratio]
+    # Set to None when pyworld is unavailable or not yet extracted.
+    f0_features: Optional[np.ndarray] = None
 
     def to_vector(self) -> np.ndarray:
+        """6-dim base vector (backward compatible with existing checkpoints)."""
         return np.array([
             self.top1_prob,
             self.gap,
@@ -151,6 +155,20 @@ class UncertaintySignals:
             float(self.in_confusion_cluster),
             float(self.single_lid_only),
         ], dtype=np.float32)
+
+    def to_vector_extended(self) -> np.ndarray:
+        """10-dim vector: 6 base uncertainty + 4 F0 pitch features.
+
+        Used by Phase 3 to pass F0 context from the pipeline into the routing logic.
+        The Phase 3 MLP uses input_dim=15 (this 10-dim vector + 5 top-prob slots
+        appended by the F0Pipeline.run() method in the notebook).
+
+        F0 features are zeros when pyworld is unavailable (safe fallback).
+        """
+        base = self.to_vector()  # 6-dim
+        f0 = self.f0_features if self.f0_features is not None else np.zeros(4, dtype=np.float32)
+        return np.concatenate([base, f0]).astype(np.float32)  # 10-dim
+
 
 @dataclass
 class TranscriptResult:

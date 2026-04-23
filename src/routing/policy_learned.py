@@ -1,22 +1,19 @@
 """
 Learned routing policy — lightweight MLP trained on dev set oracle labels.
 
-This is Phase 4 work. The MLP takes 6 uncertainty features and predicts
-one of 3 routing modes (A/B/C). It's meant to outperform the rule-based
-policy by learning non-linear feature interactions.
-
-Training data comes from running the LID pipeline on the FLEURS dev set
-and assigning oracle labels:
-  - If top-1 is correct → label = A (single decode would have worked)
-  - If correct lang is in top-3 → label = B (multi-hypo would recover it)
-  - Otherwise → label = C (fallback needed)
+Phase 1+2 additions:
+  After the MLP makes its A/B/C prediction, a post-decision override layer
+  enforces the force_mode_b_threshold and flat-gap guard from confusion_clusters.yaml.
+  This means even a confident MLP prediction of Mode A will be downgraded to
+  Mode B for languages like urd (LID=67%) and srp (LID=83%).
 """
 import numpy as np
 from typing import Dict, Optional, Tuple
 from pathlib import Path
 
-from src.utils import UncertaintySignals, get_logger
-from src.routing.policy_rules import RoutingMode, RoutingDecision
+from src.utils import UncertaintySignals, get_logger, get_language_map
+from src.routing.policy_rules import RoutingMode, RoutingDecision, _apply_temperature
+from src.routing.confusion_map import ConfusionMap
 
 log = get_logger("routing.policy_learned")
 
@@ -24,12 +21,16 @@ log = get_logger("routing.policy_learned")
 class LearnedRoutingPolicy:
     """MLP routing policy. Train → save → load → use."""
 
-    def __init__(self, input_dim: int = 11, hidden_dim: int = 64, num_modes: int = 3):
+    def __init__(self, input_dim: int = 11, hidden_dim: int = 64, num_modes: int = 3,
+                 confusion_map: Optional[ConfusionMap] = None):
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.num_modes = num_modes
         self._model = None
         self._mode_labels = [RoutingMode.SINGLE, RoutingMode.MULTI_HYPOTHESIS, RoutingMode.FALLBACK]
+        # Phase 1+2: post-decision override guards
+        self._confusion_map = confusion_map or ConfusionMap()
+        self._flat_gap_override = 0.10  # force Mode B when tempered gap < this
 
     def _build_model(self):
         import torch.nn as nn
@@ -165,7 +166,7 @@ class LearnedRoutingPolicy:
 
     def decide(self, fused_probs: Dict[str, float],
                uncertainty: UncertaintySignals) -> RoutingDecision:
-        """Predict routing mode using the trained MLP."""
+        """Predict routing mode using the trained MLP, then apply Phase 1+2 overrides."""
         import torch
 
         if self._model is None:
@@ -173,7 +174,6 @@ class LearnedRoutingPolicy:
                              "Call train_policy() or load() first.")
 
         # Build feature vector: 6 uncertainty + up to 5 top fused_probs
-        # Clip to self.input_dim for backward-compat with older checkpoints (input_dim=6)
         uncertainty_vec = uncertainty.to_vector()
         sorted_probs = sorted(fused_probs.values(), reverse=True)[:5]
         sorted_probs = sorted_probs + [0.0] * (5 - len(sorted_probs))
@@ -186,7 +186,12 @@ class LearnedRoutingPolicy:
             mode_idx = probs.argmax().item()
 
         mode = self._mode_labels[mode_idx]
-        sorted_langs = sorted(fused_probs, key=fused_probs.get, reverse=True)
+
+        lang_map = get_language_map()
+        sorted_langs = [
+            l for l in sorted(fused_probs, key=fused_probs.get, reverse=True)
+            if lang_map.asr_capable(l)
+        ]
 
         if mode == RoutingMode.SINGLE:
             candidates = sorted_langs[:1]
@@ -195,12 +200,67 @@ class LearnedRoutingPolicy:
         else:
             candidates = sorted_langs[:5]
 
+        mlp_reason = f"Learned policy (mode probs: {[round(p,3) for p in probs.tolist()]})"
+
+        # ── Phase 1+2 post-decision override ─────────────────────────────────
+        if sorted_langs:
+            top1 = sorted_langs[0]
+
+            # RAW prob for the threshold check (pre-temperature).
+            raw_top1_prob = fused_probs.get(top1, 0.0)
+
+            # Phase 1: force_mode_b_threshold — uses RAW prob, not tempered.
+            force_b_thresh = self._confusion_map.force_mode_b_threshold(top1)
+            if mode == RoutingMode.SINGLE and force_b_thresh > 0 and raw_top1_prob < force_b_thresh:
+                candidates = sorted_langs[:3]
+                _inject_partners_learned(candidates, top1, self._confusion_map, fused_probs, lang_map)
+                mode = RoutingMode.MULTI_HYPOTHESIS
+                mlp_reason += (f" | Override: forced Mode B for '{top1}' "
+                               f"(raw_prob={raw_top1_prob:.3f} < thresh={force_b_thresh:.3f})")
+
+            # Phase 2: Flat-gap guard — uses temperature-scaled gap.
+            elif mode == RoutingMode.SINGLE and self._confusion_map.is_confused(top1):
+                tau = self._confusion_map.temperature(top1)
+                tempered = _apply_temperature(fused_probs, tau)
+                t_sorted = [l for l in sorted(tempered, key=tempered.get, reverse=True)
+                            if lang_map.asr_capable(l)]
+                t_top2_prob = tempered.get(t_sorted[1], 0.0) if len(t_sorted) > 1 else 0.0
+                tempered_gap = tempered.get(t_sorted[0], 0.0) - t_top2_prob
+                if tempered_gap < self._flat_gap_override:
+                    candidates = sorted_langs[:3]
+                    _inject_partners_learned(candidates, top1, self._confusion_map, fused_probs, lang_map)
+                    mode = RoutingMode.MULTI_HYPOTHESIS
+                    mlp_reason += (f" | Override: flat-gap guard for '{top1}' "
+                                   f"(gap={tempered_gap:.3f} < {self._flat_gap_override}, tau={tau:.1f})")
+
         return RoutingDecision(
             mode=mode,
             candidate_languages=candidates,
             confidence=probs[mode_idx].item(),
-            reason=f"Learned policy (mode probs: {probs.tolist()})"
+            reason=mlp_reason
         )
+
+
+def _inject_partners_learned(candidates: list, top1: str, confusion_map,
+                              fused_probs: dict, lang_map):
+    """In-place: add confusion partners to candidate list if not already there.
+
+    Uses fused_probs (raw) to check partner availability.
+    Caps at 2 extra partners beyond the initial candidate list (matching rules policy).
+    """
+    partners = confusion_map.get_partners(top1)
+    candidate_set = set(candidates)
+    added = 0
+    for p in partners:
+        if added >= 2:
+            break
+        if (p not in candidate_set
+                and lang_map.asr_capable(p)):
+            candidates.append(p)
+            candidate_set.add(p)
+            added += 1
+    # Hard cap: never exceed 5 candidates total
+    del candidates[5:]
 
 
 def generate_oracle_labels(fused_probs_list: list,

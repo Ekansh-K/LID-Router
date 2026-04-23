@@ -3,39 +3,92 @@
 # ============================================================
 # The routing agent uses these to downgrade high-confidence Mode A
 # decisions to cautious Mode B when the top-1 language belongs
-# to a cluster.  Clusters are derived from linguistic proximity
-# and will be refined empirically from the LID confusion matrix
-# built on the FLEURS dev set (Phase 2).
+# to a cluster.
+#
+# Per-cluster controls (Phase 1 + Phase 2):
+#   force_mode_b_threshold: if top1_prob < this value, ALWAYS use Mode B
+#                           regardless of MLP/rules policy output.
+#                           Set higher for clusters with proven low LID accuracy.
+#   temperature: softmax temperature applied to fused_probs before uncertainty
+#               computation. tau > 1 = softer/more uncertain.
+#               tau < 1 = sharper/more decisive. Default = 1.0 (no change).
+#   rerank_by_script: if true, multi_hypothesis uses Unicode script detection
+#                     to prefer the hypothesis whose script matches expected.
 
 clusters:
   - id: south_asian_script_neutral
     languages: [hin, urd]
-    note: "Nearly identical spoken form; script differs (Devanagari vs Nastaliq)"
+    note: "Nearly identical spoken form; urd uses Perso-Arabic, hin uses Devanagari"
+    # urd LID accuracy = 66.7% in Step8 — the worst of any language.
+    # Force Mode B aggressively so we always run BOTH adapters and pick by script.
+    force_mode_b_threshold: 0.97
+    temperature: 1.6
+    rerank_by_script: true
 
   - id: south_slavic
     languages: [srp, hrv, bos]
-    note: "Former Serbo-Croatian; high mutual intelligibility"
+    note: "Former Serbo-Croatian; srp=Cyrillic, hrv=Latin"
+    # srp LID accuracy = 83.3% in Step8 — second worst.
+    # Script mismatch (Cyrillic vs Latin) causes catastrophic CER.
+    force_mode_b_threshold: 0.92
+    temperature: 1.4
+    rerank_by_script: true
 
   - id: malay_indonesian
     languages: [ind, msa]
     note: "Very similar vocabulary, phonetics, and grammar"
+    force_mode_b_threshold: 0.80
+    temperature: 1.2
+    rerank_by_script: false
 
   - id: scandinavian
     languages: [nob, nno, swe, dan]
     note: "High phonetic overlap across North Germanic group"
+    force_mode_b_threshold: 0.75
+    temperature: 1.1
+    rerank_by_script: false
 
   - id: iberian_romance
     languages: [spa, por, cat, glg]
     note: "Romance languages with significant lexical/phonetic overlap"
+    force_mode_b_threshold: 0.75
+    temperature: 1.1
+    rerank_by_script: false
 
   - id: west_slavic
     languages: [ces, slk]
     note: "Czech and Slovak — high mutual intelligibility"
+    force_mode_b_threshold: 0.80
+    temperature: 1.2
+    rerank_by_script: false
 
   - id: chinese_varieties
     languages: [cmn, yue]
-    note: "Tonal Chinese varieties present in FLEURS; nan/wuu excluded (not in dataset)"
+    note: "Tonal Chinese varieties; cmn=Simplified, yue=Traditional"
+    force_mode_b_threshold: 0.70
+    temperature: 1.3
+    rerank_by_script: false
 
   - id: arabic_varieties
     languages: [arb, arz]
-    note: "MSA and Egyptian Arabic (in FLEURS); ary/apc excluded (not in dataset)"
+    note: "MSA and Egyptian Arabic (in FLEURS)"
+    force_mode_b_threshold: 0.70
+    temperature: 1.1
+    rerank_by_script: false
+
+# ── Script-to-language mapping used by rerank_by_script ─────────────────────
+# Maps a Unicode script block name (from unicodedata) to the expected language.
+# The reranker prefers whichever hypothesis contains the highest ratio of
+# characters from the expected script for the ground-truth language code.
+script_expectations:
+  urd: Arab    # Perso-Arabic / Nastaliq
+  hin: Deva    # Devanagari
+  nep: Deva    # Devanagari
+  srp: Cyrl    # Cyrillic
+  hrv: Latn    # Latin
+  bos: Latn    # Latin
+  cmn: Han     # CJK Unified Ideographs (Simplified)
+  jpn: Hira    # Hiragana (also Katakana + Kanji, but Hira is distinctive)
+  amh: Ethi    # Ethiopic / Ge'ez
+  kat: Geor    # Georgian
+  mon: Cyrl    # Mongolian (Cyrillic form used in FLEURS)

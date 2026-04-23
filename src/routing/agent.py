@@ -1,8 +1,12 @@
 """
 Routing Agent — the "agentic" core of the pipeline.
 
-Wraps either the rule-based or learned policy and provides the
-unified interface the pipeline calls.
+Wraps either the rule-based or learned policy and provides
+the unified interface the pipeline calls.
+
+Phase 1+2: The agent now passes its ConfusionMap instance to the
+LearnedRoutingPolicy so the post-decision override (force_mode_b_threshold,
+flat-gap guard) is consistently enforced for BOTH policy types.
 """
 from typing import Dict, Optional
 
@@ -16,16 +20,20 @@ log = get_logger("routing.agent")
 
 class RoutingAgent:
     """Decides how to decode based on LID confidence signals.
-    
+
     Supports two policies:
     - 'rules': threshold-based (interpretable baseline)
     - 'learned': MLP-based (trained on dev set oracle labels)
+
+    Phase 1+2: Both policies share the same ConfusionMap instance so
+    force_mode_b_threshold and temperature behave identically.
     """
 
     def __init__(self, policy: str = "rules", config: Optional[dict] = None):
         if config is None:
             config = load_config().get("routing", {})
 
+        # Shared ConfusionMap — used by both policies
         self.confusion_map = ConfusionMap()
 
         if policy == "rules":
@@ -34,6 +42,7 @@ class RoutingAgent:
                 delta_high=config.get("delta_high", 0.30),
                 theta_med=config.get("theta_med", 0.40),
                 entropy_med=config.get("entropy_med", 2.0),
+                flat_gap_override=config.get("flat_gap_override", 0.10),
                 top_k=config.get("top_k", 3),
                 confusion_map=self.confusion_map,
             )
@@ -41,6 +50,7 @@ class RoutingAgent:
             self._policy = LearnedRoutingPolicy(
                 input_dim=config.get("input_dim", 11),
                 hidden_dim=config.get("hidden_dim", 64),
+                confusion_map=self.confusion_map,   # Phase 1+2: shared map
             )
         else:
             raise ValueError(f"Unknown policy: {policy}. Use 'rules' or 'learned'.")
@@ -57,12 +67,12 @@ class RoutingAgent:
     def decide(self, fused_probs: Dict[str, float],
                uncertainty: UncertaintySignals) -> RoutingDecision:
         """Make a routing decision.
-        
+
         Returns a RoutingDecision with:
         - mode: A (single), B (multi-hypothesis), C (fallback)
         - candidate_languages: ordered list of language codes to try
         - confidence: how confident the agent is in this decision
-        - reason: human-readable explanation
+        - reason: human-readable explanation (includes override reason if triggered)
         """
         decision = self._policy.decide(fused_probs, uncertainty)
         log.debug(f"Routing decision: {decision}")
