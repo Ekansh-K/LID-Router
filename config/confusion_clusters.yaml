@@ -84,7 +84,8 @@ script_expectations:
   urd: Arab    # Perso-Arabic / Nastaliq
   hin: Deva    # Devanagari
   nep: Deva    # Devanagari
-  srp: Cyrl    # Cyrillic
+  srp: Latn    # FLEURS srp references are Latin-script (Serbian Latin/Bosnian orthography)
+               # Whisper outputs Latin (CER=0.18), MMS outputs Cyrillic garbage (CER=0.67)
   hrv: Latn    # Latin
   bos: Latn    # Latin
   cmn: Han     # CJK Unified Ideographs (Simplified)
