@@ -4,7 +4,7 @@
 
 ![alt text](results/image-1.png)
 
-This my Project LID Router for the tecnical details regarding this project please check [Project Details](Project_Details.md) this project has kind of confusion name as it does more than just routing but idk all  cld come up with at 1 in the night
+This my Project LID Router for the technical details regarding this project please check [Project Details](Project_Details.md) this project has kind of confusing name as it does more than just routing but idk all  cld come up with at 1 in the night
 
 Running the application requires you to start both the backend and the frontend. Here is how you can get everything up and running without breaking too much stuff hopefully , probably :
 
