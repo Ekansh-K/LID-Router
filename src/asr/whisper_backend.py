@@ -35,8 +35,9 @@ class WhisperBackend:
         if self._model is not None:
             return
         import whisper
-        log.info(f"Loading WhisperBackend (whisper-{self.model_size}) on {self.device}...")
-        self._model = whisper.load_model(self.model_size, device=self.device)
+        log.info(f"Loading WhisperBackend (whisper-{self.model_size}) on CPU (dynamic swap enabled)...")
+        # Always load to CPU first
+        self._model = whisper.load_model(self.model_size, device="cpu")
         log.info("WhisperBackend loaded")
 
     def set_model(self, model):
@@ -78,13 +79,22 @@ class WhisperBackend:
 
         audio_f32 = audio.astype(np.float32)
 
-        result = self._model.transcribe(
-            audio_f32,
-            language=whisper_code,
-            beam_size=self.beam_size,
-            temperature=0.0,
-            without_timestamps=True,
-        )
+        # Move to GPU for inference
+        self._model = self._model.to(self.device)
+        import torch
+        try:
+            result = self._model.transcribe(
+                audio_f32,
+                language=whisper_code,
+                beam_size=self.beam_size,
+                temperature=0.0,
+                without_timestamps=True,
+            )
+        finally:
+            # Move back to CPU immediately
+            self._model = self._model.to("cpu")
+            if self.device == "cuda":
+                torch.cuda.empty_cache()
 
         text = result["text"].strip()
         # avg_logprob is per-segment; aggregate across segments
@@ -109,13 +119,22 @@ class WhisperBackend:
 
         audio_f32 = audio.astype(np.float32)
 
-        result = self._model.transcribe(
-            audio_f32,
-            language=None,  # auto-detect
-            beam_size=self.beam_size,
-            temperature=0.0,
-            without_timestamps=True,
-        )
+        # Move to GPU for inference
+        self._model = self._model.to(self.device)
+        import torch
+        try:
+            result = self._model.transcribe(
+                audio_f32,
+                language=None,  # auto-detect
+                beam_size=self.beam_size,
+                temperature=0.0,
+                without_timestamps=True,
+            )
+        finally:
+            # Move back to CPU immediately
+            self._model = self._model.to("cpu")
+            if self.device == "cuda":
+                torch.cuda.empty_cache()
 
         text = result["text"].strip()
         detected_whisper = result.get("language", "unknown")

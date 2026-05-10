@@ -61,7 +61,8 @@ class AcousticLID(BaseLID):
         if self.precision == "fp16" and self.device == "cuda":
             self._model = self._model.half()
 
-        self._model = self._model.to(self.device)
+        # Keep model on CPU while resting to save VRAM
+        self._model = self._model.to("cpu")
         self._model.eval()
         self._id2label = self._model.config.id2label
         log.info(f"AcousticLID loaded — {len(self._id2label)} language classes")
@@ -101,8 +102,16 @@ class AcousticLID(BaseLID):
             inputs = {k: v.half() if v.dtype == torch.float32 else v
                       for k, v in inputs.items()}
 
-        with torch.no_grad():
-            logits = self._model(**inputs).logits
+        # Move to GPU just for inference
+        self._model = self._model.to(self.device)
+        try:
+            with torch.no_grad():
+                logits = self._model(**inputs).logits
+        finally:
+            # Move back to CPU and clear VRAM immediately
+            self._model = self._model.to("cpu")
+            if self.device == "cuda":
+                torch.cuda.empty_cache()
 
         probs = torch.softmax(logits.float(), dim=-1)[0]  # back to fp32 for softmax
 

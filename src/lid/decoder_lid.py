@@ -50,8 +50,9 @@ class DecoderLID(BaseLID):
             log.info("DecoderLID using pre-loaded Whisper model")
             return
         import whisper
-        log.info(f"Loading DecoderLID (whisper-{self.model_size}) on {self.device}...")
-        self._model = whisper.load_model(self.model_size, device=self.device)
+        log.info(f"Loading DecoderLID (whisper-{self.model_size}) on CPU (dynamic swap enabled)...")
+        # Always load to CPU first to save VRAM
+        self._model = whisper.load_model(self.model_size, device="cpu")
         log.info("DecoderLID loaded")
 
     def unload(self):
@@ -91,8 +92,16 @@ class DecoderLID(BaseLID):
             audio_padded, n_mels=self._model.dims.n_mels
         ).to(self.device)
 
-        with torch.no_grad():
-            _, probs = self._model.detect_language(mel)
+        # Move model to GPU for inference
+        self._model = self._model.to(self.device)
+        try:
+            with torch.no_grad():
+                _, probs = self._model.detect_language(mel)
+        finally:
+            # Move back to CPU immediately
+            self._model = self._model.to("cpu")
+            if self.device == "cuda":
+                torch.cuda.empty_cache()
 
         # probs is already a dict {lang_code: float}
         return dict(probs)

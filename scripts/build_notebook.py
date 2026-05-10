@@ -88,6 +88,76 @@ print(f'  eng  force_mode_b_threshold = {cmap.force_mode_b_threshold(\"eng\")}')
 print('Sanity check passed — ready.')
 """))
 
+# ── STEP 9-QUICK (targeted: srp + urd only, ~5 min) ─────────────────────────
+new_cells.append(md("step9_quick_md", """\
+## Step 9-Quick — Targeted Validation: srp + urd only (~5 min)
+
+Run this BEFORE Step 9a to quickly verify the script-reranking fix works
+on the two worst-performing languages without waiting 40 minutes.
+
+Expected results after the fix:
+- `urd`: CER should drop from **0.35 → ~0.15–0.22**
+- `srp`: CER should drop from **0.82 → ~0.18–0.25**\
+"""))
+new_cells.append(code("step9_quick_code", """\
+# ── Step 9-Quick: Validate script-reranking fix on srp + urd only ───────────
+import inspect
+from src.decoding import multi_hypothesis as _mh
+from src.pipeline import Pipeline
+from evaluation.evaluate import evaluate_full
+
+# 1. Confirm the fix is active
+src_code = inspect.getsource(_mh.decode_multi_hypothesis)
+if 'top1_lang = candidate_languages[0]' in src_code:
+    print('FIX ACTIVE: cluster-level script reranking loaded')
+else:
+    raise RuntimeError('OLD code still loaded — re-run the patch cell first!')
+
+# 2. Run only on srp and urd
+TARGET_LANGS = ['srp', 'urd', 'hin']  # hin included as sanity check
+
+pipe_q = Pipeline(routing_policy='rules')
+pipe_q.load_models()
+
+results_q = evaluate_full(
+    pipeline=pipe_q,
+    lang_codes=TARGET_LANGS,
+    split='test',
+    max_per_lang=30,
+    save_path='results/step9_quick_srp_urd.json',
+)
+
+pipe_q.unload_models()
+
+import json
+with open('results/step9_quick_srp_urd.json') as f:
+    dq = json.load(f)
+per = dq.get('per_language', {})
+
+print()
+print('=' * 55)
+print(f'  {"Lang":<6}  {"CER":>8}  {"Old CER":>8}  {"Delta":>8}  Status')
+print('=' * 55)
+old = {'srp': 0.8228, 'urd': 0.3513, 'hin': 0.1478}
+for lang in TARGET_LANGS:
+    if lang not in per: continue
+    cer = per[lang]['mean_cer']
+    prev = old.get(lang, 0.0)
+    delta = cer - prev
+    flag = 'IMPROVED' if delta < -0.05 else ('OK' if delta < 0.01 else 'WORSE')
+    print(f'  {lang:<6}  {cer:>8.4f}  {prev:>8.4f}  {delta:>+8.4f}  {flag}')
+print('=' * 55)
+
+if per.get('srp', {}).get('mean_cer', 1.0) < 0.50:
+    print('srp: PASS — script reranking is working')
+else:
+    print('srp: FAIL — still high CER, investigate further')
+if per.get('urd', {}).get('mean_cer', 1.0) < 0.30:
+    print('urd: PASS — Arabic reranking is working')
+else:
+    print('urd: FAIL — still high, check script_target in logs')
+"""))
+
 # ── STEP 9a ───────────────────────────────────────────────────────────────────
 new_cells.append(md("step9a_md", "## Step 9a — Rules Policy + Phase 1+2 (~40 min)"))
 new_cells.append(code("step9a_code", """\

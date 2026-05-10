@@ -32,3 +32,9 @@ env/
 # Project-specific (large files, not source)
 models/*.pt
 models/*.bin
+
+# Frontend
+node_modules/
+ui/frontend/node_modules/
+ui/frontend/dist/
+ui/frontend/.eslintcache

@@ -10,6 +10,8 @@ files = {
     'A1_mms_lid_only': 'results/ablations/a1_mms_lid_only.json',
     'A6_rules': 'results/ablations/a6_rules_policy.json',
     'A6_learned': 'results/ablations/a6_learned_policy.json',
+    'Step9_learned': 'results/step9_phase12_learned.json',
+    'Step10_f0': 'results/step10_phase3_f0.json',
 }
 
 header = f"{'System':<22} {'CER':>8} {'WER':>8} {'LID_Acc':>8} {'LID_T3':>8} {'Route_A':>8} {'Route_B':>8} {'Route_C':>8} {'N':>6}"

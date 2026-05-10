@@ -45,7 +45,8 @@ class MMSBackend:
         if self.precision == "fp16" and self.device == "cuda":
             self._model = self._model.half()
 
-        self._model = self._model.to(self.device)
+        # Keep on CPU until needed
+        self._model = self._model.to("cpu")
         self._model.eval()
         log.info("MMSBackend loaded")
 
@@ -110,8 +111,14 @@ class MMSBackend:
             inputs = {k: v.half() if v.dtype == torch.float32 else v
                       for k, v in inputs.items()}
 
-        with torch.no_grad():
-            logits = self._model(**inputs).logits
+        self._model = self._model.to(self.device)
+        try:
+            with torch.no_grad():
+                logits = self._model(**inputs).logits
+        finally:
+            self._model = self._model.to("cpu")
+            if self.device == "cuda":
+                torch.cuda.empty_cache()
 
         # Greedy decoding
         predicted_ids = torch.argmax(logits.float(), dim=-1)[0]
