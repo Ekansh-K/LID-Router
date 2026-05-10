@@ -1,14 +1,4 @@
-<style>
-  body {
-    font-family: JetBrains Mono, monospace;
-    font-size: 115%;
-  }
-</style>
-
-<div style="text-align: center;">
-</div>
-
-# LID-Router: Final Project Showcase
+# LID-Router: Final Project Details
 
 ## Applying the Concept of an Agent
 

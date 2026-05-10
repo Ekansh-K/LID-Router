@@ -1,8 +1,8 @@
 # LID Router Project
 
-![alt text](image.png)
+![alt text](results/image.png)
 
-![alt text](image-1.png)
+![alt text](results/image-1.png)
 
 This my Project LID Router for the tecnical details regarding this project please check `Project_Details.md` this project has kind of confusion name as it does more than just routing but idk all  cld come up with at 1 night
 
